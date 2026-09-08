@@ -59,74 +59,176 @@ button.primary{width:100%;padding:15px;border:0;border-radius:11px;background:#f
 </section>
 </main></div>
 <script>
-const KEY='connect_darts_v1';
-let db;
-try{db=JSON.parse(localStorage.getItem(KEY)||'{"players":[],"months":{}}')}catch(e){db={players:[],months:{}}}
-const monthKey=()=>{let d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
-const prevMonth=()=>{let d=new Date();d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
-function save(){localStorage.setItem(KEY,JSON.stringify(db))}
-function ensureMonth(){let k=monthKey();if(!db.months[k])db.months[k]={points:{},matches:[]};db.players.forEach(p=>{if(db.months[k].points[p.id]==null)db.months[k].points[p.id]=0});save()}
-function nameOf(id){return db.players.find(p=>p.id===id)?.name||''}
-function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+const SUPABASE_URL = "https://wcmxifczhmzsqhmvcukp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zIssqVYp7Wg93lGSqLFhnw_fLC_kYKZ";
+const API = SUPABASE_URL + '/rest/v1';
+const headers = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json'
+};
+let state = {players:[], matches:[]};
+let sel = {};
+
+const monthKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+const prevMonthKey=()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return monthKey(d)};
+const monthLabel=k=>{const [y,m]=k.split('-');return `${y}年${Number(m)}月`};
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const playerById=id=>state.players.find(p=>String(p.id)===String(id));
+const playerName=id=>playerById(id)?.nickname||'';
+
+async function api(path, options={}){
+  const res=await fetch(API+path,{...options,headers:{...headers,...(options.headers||{})},cache:'no-store'});
+  if(!res.ok){
+    let body=''; try{body=await res.text()}catch(e){}
+    const err=new Error(body||('HTTP '+res.status)); err.status=res.status; throw err;
+  }
+  const text=await res.text();
+  return text?JSON.parse(text):null;
+}
+
+async function loadData(showError=true){
+  try{
+    const [players,matches]=await Promise.all([
+      api('/players?select=id,nickname,best_rating,created_at&order=created_at.asc'),
+      api('/matches?select=*&order=created_at.asc')
+    ]);
+    state.players=players||[]; state.matches=matches||[];
+    render();
+  }catch(e){
+    if(showError) alert('データの読み込みに失敗しました。通信環境を確認して、もう一度開き直してね。');
+    console.error(e);
+  }
+}
+
+function standings(k, onlyPlayed=false){
+  const ms=state.matches.filter(x=>x.month_key===k);
+  const played=new Set(ms.flatMap(x=>[String(x.player_a),String(x.player_b)]));
+  const map=new Map(state.players.map(p=>[String(p.id),{...p,points:0,matches:0}]));
+  ms.forEach(m=>{
+    const w=map.get(String(m.winner)), l=map.get(String(m.loser));
+    if(w){w.points+=Number(m.winner_points);w.matches++}
+    if(l){l.points+=Number(m.loser_points);l.matches++}
+  });
+  return [...map.values()]
+    .filter(p=>!onlyPlayed || played.has(String(p.id)))
+    .sort((a,b)=>b.points-a.points||b.matches-a.matches||a.nickname.localeCompare(b.nickname,'ja'));
+}
+
+function rankRows(arr){
+  return arr.map((p,i)=>`<div class="row"><div class="rank">${i+1}</div><div class="name">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(p.nickname)} <span class="rt">最高Rt.${esc(p.best_rating)}</span><div class="small">${p.matches}戦</div></div><div class="pts">${p.points}pt</div></div>`).join('');
+}
+
 function render(){
- ensureMonth(); const k=monthKey(),m=db.months[k];
- document.getElementById('monthLabel').textContent=k.replace('-','年')+'月';
- const arr=db.players.map(p=>({...p,points:m.points[p.id]||0,matches:m.matches.filter(x=>x.a===p.id||x.b===p.id).length}))
- .sort((a,b)=>b.points-a.points||b.matches-a.matches||a.name.localeCompare(b.name));
- document.getElementById('rankingList').innerHTML=arr.length?arr.map((p,i)=>`<div class="row"><div class="rank">${i+1}</div><div class="name">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(p.name)} <span class="rt">最高Rt.${p.rt}</span></div><div class="pts">${p.points}pt</div></div>`).join(''):'<div class="empty">まだ参加者がいないよ</div>';
- const opts='<option value="">選択してください</option>'+db.players.map(p=>`<option value="${p.id}">${esc(p.name)} (最高Rt.${p.rt})</option>`).join('');
- const a=document.getElementById('pA'),b=document.getElementById('pB'),va=a.value,vb=b.value;
- a.innerHTML=opts;b.innerHTML=opts;a.value=va;b.value=vb;renderLast();renderMatch();
+  const cur=monthKey();
+  document.getElementById('monthLabel').textContent=monthLabel(cur);
+  const current=standings(cur,false);
+  document.getElementById('rankingList').innerHTML=current.length?rankRows(current):'<div class="empty">まだ参加者がいないよ</div>';
+
+  const prev=prevMonthKey();
+  const last=standings(prev,true);
+  document.getElementById('lastList').innerHTML=last.length
+    ? `<div class="hint" style="margin-bottom:8px">${monthLabel(prev)} ／ 🥇1位特典：翌月1ヶ月投げ放題無料</div>`+rankRows(last)
+    : '<div class="empty">先月のランキングデータはまだありません。</div>';
+
+  const a=document.getElementById('pA'), b=document.getElementById('pB');
+  const oldA=a.value, oldB=b.value;
+  const opts='<option value="">選択してください</option>'+state.players.map(p=>`<option value="${p.id}">${esc(p.nickname)} (最高Rt.${esc(p.best_rating)})</option>`).join('');
+  a.innerHTML=opts;b.innerHTML=opts;
+  if(state.players.some(p=>String(p.id)===oldA)) a.value=oldA;
+  if(state.players.some(p=>String(p.id)===oldB)) b.value=oldB;
+  renderMatch();
 }
-function renderLast(){
- const k=prevMonth(),m=db.months[k];
- if(!m){document.getElementById('lastList').innerHTML='<div class="empty">先月のランキングデータはまだありません。</div>';return}
- const list=db.players.map(p=>({p,points:m.points[p.id]||0})).sort((a,b)=>b.points-a.points);
- document.getElementById('lastList').innerHTML=list.map((x,i)=>`<div class="row"><div class="rank">${i+1}</div><div class="name">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(x.p.name)}</div><div class="pts">${x.points}pt</div></div>`).join('');
+
+function alreadyPlayed(a,b){
+  return state.matches.some(x=>x.month_key===monthKey() && ((String(x.player_a)===String(a)&&String(x.player_b)===String(b))||(String(x.player_a)===String(b)&&String(x.player_b)===String(a))));
 }
+
 function renderMatch(){
- const area=document.getElementById('matchArea'),a=document.getElementById('pA').value,b=document.getElementById('pB').value;
- if(!a||!b||a===b){area.innerHTML='<div class="small">2人を選ぶと結果を入力できます。</div>';return}
- const m=db.months[monthKey()];
- if(m.matches.some(x=>(x.a===a&&x.b===b)||(x.a===b&&x.b===a))){area.innerHTML='<div class="warning">この2人は今月すでに対戦済み。</div>';return}
- area.innerHTML=`<label>701の勝者</label><div class="grid"><button class="resultbtn" data-leg="1" data-win="${a}">${esc(nameOf(a))}</button><button class="resultbtn" data-leg="1" data-win="${b}">${esc(nameOf(b))}</button></div><div id="cricketWrap" style="display:none"><label>クリケットの勝者</label><div class="grid"><button class="resultbtn" data-leg="2" data-win="${a}">${esc(nameOf(a))}</button><button class="resultbtn" data-leg="2" data-win="${b}">${esc(nameOf(b))}</button></div></div><div id="choiceWrap" style="display:none"><label>チョイスの勝者</label><div class="grid"><button class="resultbtn" data-leg="3" data-win="${a}">${esc(nameOf(a))}</button><button class="resultbtn" data-leg="3" data-win="${b}">${esc(nameOf(b))}</button></div></div><div id="confirm"></div>`;
- window.sel={};
- area.querySelectorAll('.resultbtn').forEach(btn=>btn.addEventListener('click',()=>pick(btn)));
+  const area=document.getElementById('matchArea'), a=document.getElementById('pA').value, b=document.getElementById('pB').value;
+  sel={};
+  if(!a||!b||a===b){area.innerHTML='<div class="small">2人を選ぶと結果を入力できます。</div>';return}
+  if(alreadyPlayed(a,b)){area.innerHTML='<div class="warning">この2人は今月すでに対戦済み。</div>';return}
+  area.innerHTML=`
+    <label>701の勝者</label><div class="grid"><button class="resultbtn" data-leg="1" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="1" data-win="${b}">${esc(playerName(b))}</button></div>
+    <div id="cricketWrap" style="display:none"><label>クリケットの勝者</label><div class="grid"><button class="resultbtn" data-leg="2" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="2" data-win="${b}">${esc(playerName(b))}</button></div></div>
+    <div id="choiceWrap" style="display:none"><label>チョイスの勝者</label><div class="grid"><button class="resultbtn" data-leg="3" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="3" data-win="${b}">${esc(playerName(b))}</button></div></div>
+    <div id="confirm"></div>`;
+  area.querySelectorAll('.resultbtn').forEach(btn=>btn.addEventListener('click',()=>pick(btn)));
 }
+
 function pick(btn){
- const leg=Number(btn.dataset.leg);window.sel[leg]=btn.dataset.win;
- document.querySelectorAll(`[data-leg="${leg}"]`).forEach(x=>x.classList.remove('selected'));btn.classList.add('selected');
- if(leg===1)document.getElementById('cricketWrap').style.display='block';
- if(leg===2){if(window.sel[1]===window.sel[2])finishPreview(2);else document.getElementById('choiceWrap').style.display='block'}
- if(leg===3)finishPreview(3);
+  const leg=Number(btn.dataset.leg); sel[leg]=btn.dataset.win;
+  document.querySelectorAll(`[data-leg="${leg}"]`).forEach(x=>x.classList.remove('selected'));btn.classList.add('selected');
+  if(leg===1) document.getElementById('cricketWrap').style.display='block';
+  if(leg===2){
+    if(sel[1]===sel[2]) finishPreview(2);
+    else document.getElementById('choiceWrap').style.display='block';
+  }
+  if(leg===3) finishPreview(3);
 }
+
 function finishPreview(legs){
- const a=document.getElementById('pA').value,b=document.getElementById('pB').value;
- const winner=window.sel[legs],loser=winner===a?b:a,pts=legs===2?2:1;
- const c=document.getElementById('confirm');
- c.innerHTML=`<div class="success">${legs===2?'スト勝ち':'2-1'}：<b>${esc(nameOf(winner))} +${pts}pt</b> ／ ${esc(nameOf(loser))} -${pts}pt</div><button class="primary" id="saveMatchBtn">この結果を登録</button>`;
- document.getElementById('saveMatchBtn').addEventListener('click',()=>saveMatch(a,b,winner,pts));
+  const a=document.getElementById('pA').value,b=document.getElementById('pB').value;
+  const winner=sel[legs],loser=winner===a?b:a,pts=legs===2?2:1;
+  document.getElementById('confirm').innerHTML=`<div class="success">${legs===2?'スト勝ち（2-0）':'2-1'}：<b>${esc(playerName(winner))} +${pts}pt</b> ／ ${esc(playerName(loser))} -${pts}pt</div><button class="primary" id="saveMatchBtn">この結果を登録</button>`;
+  document.getElementById('saveMatchBtn').addEventListener('click',()=>saveMatch(a,b,winner,loser,pts,legs));
 }
-function saveMatch(a,b,winner,pts){
- const m=db.months[monthKey()];if(m.matches.some(x=>(x.a===a&&x.b===b)||(x.a===b&&x.b===a)))return;
- const loser=winner===a?b:a;m.points[winner]=(m.points[winner]||0)+pts;m.points[loser]=(m.points[loser]||0)-pts;
- m.matches.push({a,b,winner,at:new Date().toISOString()});save();alert('対戦結果を登録しました！');document.getElementById('pA').value='';document.getElementById('pB').value='';render();
+
+async function saveMatch(a,b,winner,loser,pts,legs){
+  const btn=document.getElementById('saveMatchBtn'); if(btn){btn.disabled=true;btn.textContent='登録中…'}
+  try{
+    await loadData(false);
+    if(alreadyPlayed(a,b)){alert('この2人は今月すでに対戦済みです。');renderMatch();return}
+    const payload={
+      month_key:monthKey(), player_a:Number(a), player_b:Number(b),
+      leg_701_winner:Number(sel[1]), cricket_winner:Number(sel[2]),
+      choice_winner:legs===3?Number(sel[3]):null,
+      winner:Number(winner), loser:Number(loser), winner_points:pts, loser_points:-pts
+    };
+    await api('/matches',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(payload)});
+    document.getElementById('pA').value='';document.getElementById('pB').value='';
+    await loadData(false);
+    alert('対戦結果を登録しました！');
+  }catch(e){
+    console.error(e);
+    if(String(e.message).includes('matches_unique_month_pair')||String(e.message).includes('duplicate key')) alert('この2人は今月すでに対戦済みです。');
+    else alert('対戦結果を登録できませんでした。もう一度試してね。');
+  }finally{if(btn){btn.disabled=false;btn.textContent='この結果を登録'}}
 }
-function addPlayer(){
- const name=(document.getElementById('newName').value||'').trim(),rt=(document.getElementById('newRt').value||'').trim(),msg=document.getElementById('regMsg');
- if(!name||!rt){msg.innerHTML='<div class="warning">ニックネームと過去最高レーティングを入力してね。</div>';return}
- const rtNum=Number(rt);
- if(!Number.isFinite(rtNum)||rtNum<0||rtNum>20){msg.innerHTML='<div class="warning">レーティングは0〜20の数字で入力してね。</div>';return}
- if(db.players.length>=20){msg.innerHTML='<div class="warning">参加者は最大20人まで。</div>';return}
- if(db.players.some(p=>p.name.trim().toLowerCase()===name.toLowerCase())){msg.innerHTML='<div class="warning">同じニックネームがあるよ。</div>';return}
- db.players.push({id:'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,10),name,rt:rtNum.toFixed(1).replace(/\.0$/,'')});
- ensureMonth();save();document.getElementById('newName').value='';document.getElementById('newRt').value='';msg.innerHTML='<div class="success">登録完了！ランキングに追加したよ。</div>';render();
+
+async function addPlayer(){
+  const nameEl=document.getElementById('newName'),rtEl=document.getElementById('newRt'),msg=document.getElementById('regMsg'),btn=document.getElementById('registerBtn');
+  const name=(nameEl.value||'').trim(),rt=(rtEl.value||'').trim();
+  if(!name||!rt){msg.innerHTML='<div class="warning">ニックネームと過去最高レーティングを入力してね。</div>';return}
+  const rtNum=Number(rt);
+  if(!Number.isFinite(rtNum)||rtNum<0||rtNum>20){msg.innerHTML='<div class="warning">レーティングは0〜20の数字で入力してね。</div>';return}
+  btn.disabled=true;btn.textContent='登録中…';
+  try{
+    await loadData(false);
+    if(state.players.length>=20){msg.innerHTML='<div class="warning">参加者は最大20人まで。</div>';return}
+    if(state.players.some(p=>p.nickname.trim().toLowerCase()===name.toLowerCase())){msg.innerHTML='<div class="warning">同じニックネームがあるよ。</div>';return}
+    await api('/players',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({nickname:name,best_rating:rtNum})});
+    nameEl.value='';rtEl.value='';msg.innerHTML='<div class="success">登録完了！全員のランキングに反映したよ。</div>';
+    await loadData(false);
+  }catch(e){
+    console.error(e);
+    if(String(e.message).includes('duplicate key')) msg.innerHTML='<div class="warning">同じニックネームがあるよ。</div>';
+    else msg.innerHTML='<div class="warning">登録できませんでした。通信環境を確認してもう一度試してね。</div>';
+  }finally{btn.disabled=false;btn.textContent='登録する'}
 }
+
 document.getElementById('registerBtn').addEventListener('click',addPlayer);
 document.getElementById('pA').addEventListener('change',renderMatch);
 document.getElementById('pB').addEventListener('change',renderMatch);
-document.querySelectorAll('nav button').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById(btn.dataset.screen).classList.add('active');render()}));
-render();
+document.querySelectorAll('nav button').forEach(btn=>btn.addEventListener('click',async()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById(btn.dataset.screen).classList.add('active');
+  await loadData(false);
+}));
+window.addEventListener('focus',()=>loadData(false));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadData(false)});
+loadData();
 </script>
 </body>
 </html>
