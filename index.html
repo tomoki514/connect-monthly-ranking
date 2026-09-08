@@ -178,12 +178,18 @@ function finishPreview(legs){
 async function saveMatch(a,b,winner,loser,pts,legs){
   const btn=document.getElementById('saveMatchBtn'); if(btn){btn.disabled=true;btn.textContent='登録中…'}
   try{
+    // loadData() は renderMatch() を呼び sel を初期化するため、
+    // 対戦結果を先に退避してから最新データを読み込む
+    const result701=Number(sel[1]);
+    const resultCricket=Number(sel[2]);
+    const resultChoice=legs===3?Number(sel[3]):null;
+
     await loadData(false);
     if(alreadyPlayed(a,b)){alert('この2人は今月すでに対戦済みです。');renderMatch();return}
     const payload={
       month_key:monthKey(), player_a:Number(a), player_b:Number(b),
-      leg_701_winner:Number(sel[1]), cricket_winner:Number(sel[2]),
-      choice_winner:legs===3?Number(sel[3]):null,
+      leg_701_winner:result701, cricket_winner:resultCricket,
+      choice_winner:resultChoice,
       winner:Number(winner), loser:Number(loser), winner_points:pts, loser_points:-pts
     };
     await api('/matches',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(payload)});
