@@ -17,7 +17,7 @@ main{padding:16px}.screen{display:none}.screen.active{display:block}
 .card{background:#242424;border-radius:14px;padding:16px;margin-bottom:12px}
 h2{font-size:17px;margin:4px 0 14px}.hint{color:#999;font-size:12px}
 .row{display:flex;align-items:center;justify-content:space-between;padding:13px 4px;border-bottom:1px solid #333}.row:last-child{border-bottom:0}
-.rank{width:36px;font-weight:800}.name{flex:1;font-weight:700}.rt{color:#888;font-size:12px;margin-left:7px}.pts{font-size:18px;font-weight:800}
+.rank{width:36px;font-weight:800}.name{flex:1;font-weight:700}.pts{font-size:18px;font-weight:800}.avgstats{font-size:11px;color:#aaa;margin-top:5px;line-height:1.5}.stats-box{margin-top:14px;padding:12px;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:11px}.stats-player{font-weight:800;margin:2px 0 8px}.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stats-grid label{margin-top:0}
 label{display:block;font-size:12px;color:#aaa;margin:12px 0 6px}
 select,input{width:100%;padding:13px;border:1px solid #444;border-radius:10px;background:#111;color:#fff;font-size:16px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.resultbtn{padding:14px;border:1px solid #444;background:#111;color:#fff;border-radius:10px;font-weight:700}
@@ -34,7 +34,7 @@ button.primary{width:100%;padding:15px;border:0;border-radius:11px;background:#f
 .history-item{background:#181818;border:1px solid #3a3a3a;border-radius:11px;padding:12px;margin-top:9px}
 .history-title{font-weight:800;margin-bottom:5px}
 .history-detail{font-size:12px;color:#aaa;line-height:1.6}
-.history-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.history-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}
 button.admin-edit,button.admin-delete{padding:10px;border-radius:9px;font-weight:800;font-size:13px}
 button.admin-edit{background:#eee;color:#111;border:0}
 button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
@@ -53,9 +53,8 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 <section id="ranking" class="screen active">
 <div class="card"><h2>🏆 現在のランキング</h2><div id="rankingList"></div></div>
 <div class="card"><h2>参加者登録</h2>
-<div class="hint">ニックネームと過去最高レーティングを登録。レーティングは表示のみ。</div>
+<div class="hint">ニックネームだけで参加登録できます。</div>
 <label>ニックネーム</label><input id="newName" maxlength="20" placeholder="例：ともき">
-<label>過去最高レーティング</label><input id="newRt" type="number" step="0.1" min="0" max="20" placeholder="例：8.2">
 <button class="primary" id="registerBtn">登録する</button>
 <div id="regMsg"></div></div>
 
@@ -65,7 +64,7 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 <div class="card admin-panel" id="adminPanel">
   <h2>🔒 管理者メニュー</h2>
   <div id="adminLogin">
-    <div class="hint">PINを入力すると、今月の対戦結果を修正・削除できます。</div>
+    <div class="hint">PINを入力すると、今月の対戦結果を修正できます。</div>
     <label>管理者PIN</label>
     <input id="adminPin" type="password" inputmode="numeric" maxlength="4" placeholder="4桁">
     <button class="primary" id="adminLoginBtn">開く</button>
@@ -122,7 +121,7 @@ async function api(path, options={}){
 async function loadData(showError=true){
   try{
     const [players,matches]=await Promise.all([
-      api('/players?select=id,nickname,best_rating,created_at&order=created_at.asc'),
+      api('/players?select=id,nickname,created_at&order=created_at.asc'),
       api('/matches?select=*&order=created_at.asc')
     ]);
     state.players=players||[]; state.matches=matches||[];
@@ -136,21 +135,45 @@ async function loadData(showError=true){
 function standings(k, onlyPlayed=false){
   const ms=state.matches.filter(x=>x.month_key===k);
   const played=new Set(ms.flatMap(x=>[String(x.player_a),String(x.player_b)]));
-  const map=new Map(state.players.map(p=>[String(p.id),{...p,points:0,matches:0}]));
+  const map=new Map(state.players.map(p=>[String(p.id),{
+    ...p,points:0,matches:0,
+    stats01Total:0,stats01Count:0,
+    criTotal:0,criCount:0
+  }]));
+
+  const addStats=(playerId,stats01,cri)=>{
+    const p=map.get(String(playerId));
+    if(!p) return;
+    const s01=Number(stats01), sc=Number(cri);
+    if(Number.isFinite(s01)){p.stats01Total+=s01;p.stats01Count++}
+    if(Number.isFinite(sc)){p.criTotal+=sc;p.criCount++}
+  };
+
   ms.forEach(m=>{
     const w=map.get(String(m.winner)), l=map.get(String(m.loser));
     if(w){w.points+=Number(m.winner_points);w.matches++}
     if(l){l.points+=Number(m.loser_points);l.matches++}
+    addStats(m.player_a,m.player_a_01_stats,m.player_a_cri_stats);
+    addStats(m.player_b,m.player_b_01_stats,m.player_b_cri_stats);
   });
+
   return [...map.values()]
+    .map(p=>({
+      ...p,
+      avg01:p.stats01Count ? p.stats01Total/p.stats01Count : null,
+      avgCri:p.criCount ? p.criTotal/p.criCount : null
+    }))
     .filter(p=>!onlyPlayed || played.has(String(p.id)))
     .sort((a,b)=>b.points-a.points||b.matches-a.matches||a.nickname.localeCompare(b.nickname,'ja'));
 }
 
-function rankRows(arr){
-  return arr.map((p,i)=>`<div class="row"><div class="rank">${i+1}</div><div class="name">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(p.nickname)} <span class="rt">最高Rt.${esc(p.best_rating)}</span><div class="small">${p.matches}戦</div></div><div class="pts">${p.points}pt</div></div>`).join('');
+function statText(v){
+  return Number.isFinite(v) ? Number(v).toFixed(2) : '-';
 }
 
+function rankRows(arr){
+  return arr.map((p,i)=>`<div class="row"><div class="rank">${i+1}</div><div class="name">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(p.nickname)}<div class="avgstats">${p.matches}戦 ／ 01平均 ${statText(p.avg01)}　Cri平均 ${statText(p.avgCri)}</div></div><div class="pts">${p.points}pt</div></div>`).join('');
+}
 
 let adminUnlocked=false;
 
@@ -162,8 +185,17 @@ function matchScoreText(m){
 function legSummary(m){
   const p701=playerName(m.leg_701_winner);
   const pc=playerName(m.cricket_winner);
-  const ch=m.choice_winner ? ` / チョイス: ${playerName(m.choice_winner)}` : '';
-  return `701: ${p701} / クリケ: ${pc}${ch}`;
+  const ch=m.choice_winner ? ` / Cho: ${playerName(m.choice_winner)}` : '';
+  return `701: ${p701} / Cri: ${pc}${ch}`;
+}
+
+function matchStatsSummary(m){
+  const a=playerName(m.player_a), b=playerName(m.player_b);
+  const a01=m.player_a_01_stats==null?'-':Number(m.player_a_01_stats).toFixed(2);
+  const ac=m.player_a_cri_stats==null?'-':Number(m.player_a_cri_stats).toFixed(2);
+  const b01=m.player_b_01_stats==null?'-':Number(m.player_b_01_stats).toFixed(2);
+  const bc=m.player_b_cri_stats==null?'-':Number(m.player_b_cri_stats).toFixed(2);
+  return `${a}：01 ${a01} / Cri ${ac}　｜　${b}：01 ${b01} / Cri ${bc}`;
 }
 
 function renderAdminMatches(){
@@ -183,11 +215,11 @@ function renderAdminMatches(){
       <div class="history-title">${esc(playerName(m.player_a))} vs ${esc(playerName(m.player_b))}</div>
       <div class="history-detail">
         結果：${esc(playerName(m.winner))} 勝ち ${matchScoreText(m)}<br>
-        ${esc(legSummary(m))}
+        ${esc(legSummary(m))}<br>
+        ${esc(matchStatsSummary(m))}
       </div>
       <div class="history-actions">
         <button class="admin-edit" data-edit-id="${m.id}">修正</button>
-        <button class="admin-delete" data-delete-id="${m.id}">削除</button>
       </div>
     </div>`).join('');
 
@@ -224,6 +256,12 @@ async function adminDeleteMatch(matchId, editAfter){
       document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
       document.getElementById('match').classList.add('active');
       renderMatch();
+      if(document.getElementById('a01Stats')){
+        document.getElementById('a01Stats').value=m.player_a_01_stats??'';
+        document.getElementById('aCriStats').value=m.player_a_cri_stats??'';
+        document.getElementById('b01Stats').value=m.player_b_01_stats??'';
+        document.getElementById('bCriStats').value=m.player_b_cri_stats??'';
+      }
       window.scrollTo({top:0,behavior:'smooth'});
       alert('元の対戦結果を削除しました。正しい結果を入力し直してね。');
     }else{
@@ -257,7 +295,7 @@ function render(){
 
   const a=document.getElementById('pA'), b=document.getElementById('pB');
   const oldA=a.value, oldB=b.value;
-  const opts='<option value="">選択してください</option>'+state.players.map(p=>`<option value="${p.id}">${esc(p.nickname)} (最高Rt.${esc(p.best_rating)})</option>`).join('');
+  const opts='<option value="">選択してください</option>'+state.players.map(p=>`<option value="${p.id}">${esc(p.nickname)}</option>`).join('');
   a.innerHTML=opts;b.innerHTML=opts;
   if(state.players.some(p=>String(p.id)===oldA)) a.value=oldA;
   if(state.players.some(p=>String(p.id)===oldB)) b.value=oldB;
@@ -275,9 +313,23 @@ function renderMatch(){
   if(!a||!b||a===b){area.innerHTML='<div class="small">2人を選ぶと結果を入力できます。</div>';return}
   if(alreadyPlayed(a,b)){area.innerHTML='<div class="warning">この2人は今月すでに対戦済み。</div>';return}
   area.innerHTML=`
+    <div class="stats-box">
+      <div class="stats-player">${esc(playerName(a))} Stats</div>
+      <div class="stats-grid">
+        <div><label>01 Stats</label><input id="a01Stats" type="number" inputmode="decimal" step="0.01" min="0" max="180" placeholder="例：118.80"></div>
+        <div><label>Cri Stats</label><input id="aCriStats" type="number" inputmode="decimal" step="0.01" min="0" max="9" placeholder="例：7.00"></div>
+      </div>
+    </div>
+    <div class="stats-box">
+      <div class="stats-player">${esc(playerName(b))} Stats</div>
+      <div class="stats-grid">
+        <div><label>01 Stats</label><input id="b01Stats" type="number" inputmode="decimal" step="0.01" min="0" max="180" placeholder="例：118.80"></div>
+        <div><label>Cri Stats</label><input id="bCriStats" type="number" inputmode="decimal" step="0.01" min="0" max="9" placeholder="例：7.00"></div>
+      </div>
+    </div>
     <label>701の勝者</label><div class="grid"><button class="resultbtn" data-leg="1" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="1" data-win="${b}">${esc(playerName(b))}</button></div>
-    <div id="cricketWrap" style="display:none"><label>クリケットの勝者</label><div class="grid"><button class="resultbtn" data-leg="2" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="2" data-win="${b}">${esc(playerName(b))}</button></div></div>
-    <div id="choiceWrap" style="display:none"><label>チョイスの勝者</label><div class="grid"><button class="resultbtn" data-leg="3" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="3" data-win="${b}">${esc(playerName(b))}</button></div></div>
+    <div id="cricketWrap" style="display:none"><label>Criの勝者</label><div class="grid"><button class="resultbtn" data-leg="2" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="2" data-win="${b}">${esc(playerName(b))}</button></div></div>
+    <div id="choiceWrap" style="display:none"><label>Choの勝者</label><div class="grid"><button class="resultbtn" data-leg="3" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="3" data-win="${b}">${esc(playerName(b))}</button></div></div>
     <div id="confirm"></div>`;
   area.querySelectorAll('.resultbtn').forEach(btn=>btn.addEventListener('click',()=>pick(btn)));
 }
@@ -303,11 +355,27 @@ function finishPreview(legs){
 async function saveMatch(a,b,winner,loser,pts,legs){
   const btn=document.getElementById('saveMatchBtn'); if(btn){btn.disabled=true;btn.textContent='登録中…'}
   try{
-    // loadData() は renderMatch() を呼び sel を初期化するため、
-    // 対戦結果を先に退避してから最新データを読み込む
     const result701=Number(sel[1]);
     const resultCricket=Number(sel[2]);
     const resultChoice=legs===3?Number(sel[3]):null;
+
+    const a01=Number(document.getElementById('a01Stats')?.value);
+    const aCri=Number(document.getElementById('aCriStats')?.value);
+    const b01=Number(document.getElementById('b01Stats')?.value);
+    const bCri=Number(document.getElementById('bCriStats')?.value);
+
+    if(![a01,aCri,b01,bCri].every(Number.isFinite)){
+      alert('2人分の01 StatsとCri Statsを入力してね。');
+      return;
+    }
+    if(a01<0||a01>180||b01<0||b01>180){
+      alert('01 Statsは0〜180で入力してね。');
+      return;
+    }
+    if(aCri<0||aCri>9||bCri<0||bCri>9){
+      alert('Cri Statsは0〜9で入力してね。');
+      return;
+    }
 
     await loadData(false);
     if(alreadyPlayed(a,b)){alert('この2人は今月すでに対戦済みです。');renderMatch();return}
@@ -315,7 +383,9 @@ async function saveMatch(a,b,winner,loser,pts,legs){
       month_key:monthKey(), player_a:Number(a), player_b:Number(b),
       leg_701_winner:result701, cricket_winner:resultCricket,
       choice_winner:resultChoice,
-      winner:Number(winner), loser:Number(loser), winner_points:pts, loser_points:-pts
+      winner:Number(winner), loser:Number(loser), winner_points:pts, loser_points:-pts,
+      player_a_01_stats:a01, player_a_cri_stats:aCri,
+      player_b_01_stats:b01, player_b_cri_stats:bCri
     };
     await api('/matches',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(payload)});
     document.getElementById('pA').value='';document.getElementById('pB').value='';
@@ -324,27 +394,27 @@ async function saveMatch(a,b,winner,loser,pts,legs){
   }catch(e){
     console.error(e);
     if(String(e.message).includes('matches_unique_month_pair')||String(e.message).includes('duplicate key')) alert('この2人は今月すでに対戦済みです。');
+    else if(String(e.message).includes('player_a_01_stats')||String(e.message).includes('player_a_cri_stats')) alert('Stats用のSupabase設定がまだです。先に追加SQLを実行してね。');
     else alert('対戦結果を登録できませんでした。もう一度試してね。');
   }finally{if(btn){btn.disabled=false;btn.textContent='この結果を登録'}}
 }
 
 async function addPlayer(){
-  const nameEl=document.getElementById('newName'),rtEl=document.getElementById('newRt'),msg=document.getElementById('regMsg'),btn=document.getElementById('registerBtn');
-  const name=(nameEl.value||'').trim(),rt=(rtEl.value||'').trim();
-  if(!name||!rt){msg.innerHTML='<div class="warning">ニックネームと過去最高レーティングを入力してね。</div>';return}
-  const rtNum=Number(rt);
-  if(!Number.isFinite(rtNum)||rtNum<0||rtNum>20){msg.innerHTML='<div class="warning">レーティングは0〜20の数字で入力してね。</div>';return}
+  const nameEl=document.getElementById('newName'),msg=document.getElementById('regMsg'),btn=document.getElementById('registerBtn');
+  const name=(nameEl.value||'').trim();
+  if(!name){msg.innerHTML='<div class="warning">ニックネームを入力してね。</div>';return}
   btn.disabled=true;btn.textContent='登録中…';
   try{
     await loadData(false);
     if(state.players.length>=20){msg.innerHTML='<div class="warning">参加者は最大20人まで。</div>';return}
     if(state.players.some(p=>p.nickname.trim().toLowerCase()===name.toLowerCase())){msg.innerHTML='<div class="warning">同じニックネームがあるよ。</div>';return}
-    await api('/players',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({nickname:name,best_rating:rtNum})});
-    nameEl.value='';rtEl.value='';msg.innerHTML='<div class="success">登録完了！全員のランキングに反映したよ。</div>';
+    await api('/players',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({nickname:name})});
+    nameEl.value='';msg.innerHTML='<div class="success">登録完了！全員のランキングに反映したよ。</div>';
     await loadData(false);
   }catch(e){
     console.error(e);
     if(String(e.message).includes('duplicate key')) msg.innerHTML='<div class="warning">同じニックネームがあるよ。</div>';
+    else if(String(e.message).includes('best_rating')) msg.innerHTML='<div class="warning">Supabase側の参加者設定を先に更新してね。</div>';
     else msg.innerHTML='<div class="warning">登録できませんでした。通信環境を確認してもう一度試してね。</div>';
   }finally{btn.disabled=false;btn.textContent='登録する'}
 }
