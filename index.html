@@ -154,9 +154,6 @@ function rankRows(arr){
 
 let adminUnlocked=false;
 
-function playerById(id){
-  return state.players.find(p=>String(p.id)===String(id));
-}
 
 function matchScoreText(m){
   return Number(m.winner_points)===2 ? '2-0（スト勝ち）' : '2-1';
