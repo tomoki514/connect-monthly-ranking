@@ -155,6 +155,14 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
   line-height:1!important;
 }
 
+
+.rules-list{
+  font-size:14px;
+  line-height:1.9;
+  color:#eee;
+}
+.rules-list div + div{margin-top:2px}
+
 </style>
 </head>
 <body>
@@ -173,6 +181,18 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 <label>ニックネーム</label><input id="newName" maxlength="20" placeholder="例：ともき">
 <button class="primary" id="registerBtn">登録する</button>
 <div id="regMsg"></div></div>
+
+<div class="card">
+  <h2>▪︎ ルール</h2>
+  <div class="rules-list">
+    <div>・対戦は1ヶ月に1回のみ（一発勝負）</div>
+    <div>・3LEG MEDLEY（701 - Cri - Cho）</div>
+    <div>・オートハンデあり</div>
+    <div>・マスターアウト</div>
+    <div>・コイントス → コークスタート</div>
+  </div>
+</div>
+
 
 <div class="admin-entry">
   <button class="admin-link" id="openAdminBtn">管理者メニュー</button>
