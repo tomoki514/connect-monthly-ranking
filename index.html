@@ -39,6 +39,79 @@ button.admin-edit,button.admin-delete{padding:10px;border-radius:9px;font-weight
 button.admin-edit{background:#eee;color:#111;border:0}
 button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 
+
+/* Top 3 ranking badge */
+.rank-medal{
+  position:relative;
+  width:46px;
+  height:54px;
+  flex:0 0 46px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  font-weight:900;
+  font-size:25px;
+  line-height:42px;
+}
+.rank-medal::before{
+  content:"♛";
+  position:absolute;
+  top:-4px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:22px;
+  line-height:22px;
+  color:#f4a300;
+  text-shadow:0 1px 1px rgba(0,0,0,.18);
+}
+.rank-medal .medal-circle{
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  border:2px solid rgba(255,255,255,.35);
+  box-shadow:inset 0 -2px 0 rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.18);
+}
+.rank-medal.rank-1 .medal-circle{background:#f05a18}
+.rank-medal.rank-2 .medal-circle{background:#ff9f0a}
+.rank-medal.rank-3 .medal-circle{background:#d99a00}
+
+
+/* 1〜3位を順位順に強調 */
+.row.top-rank-1{
+  min-height:88px;
+  padding-top:15px;
+  padding-bottom:15px;
+}
+.row.top-rank-1 .name{font-size:1.28em;font-weight:900}
+.row.top-rank-1 .pts{font-size:1.32em;font-weight:900}
+.row.top-rank-1 .avgstats{font-size:.82em}
+
+.row.top-rank-2{
+  min-height:78px;
+  padding-top:12px;
+  padding-bottom:12px;
+}
+.row.top-rank-2 .name{font-size:1.16em;font-weight:850}
+.row.top-rank-2 .pts{font-size:1.18em;font-weight:850}
+.row.top-rank-2 .avgstats{font-size:.80em}
+
+.row.top-rank-3{
+  min-height:70px;
+  padding-top:10px;
+  padding-bottom:10px;
+}
+.row.top-rank-3 .name{font-size:1.08em;font-weight:800}
+.row.top-rank-3 .pts{font-size:1.10em;font-weight:800}
+.row.top-rank-3 .avgstats{font-size:.78em}
+
+.rank-medal.rank-1{transform:scale(1.16);margin-right:5px}
+.rank-medal.rank-2{transform:scale(1.08);margin-right:3px}
+.rank-medal.rank-3{transform:scale(1.02);margin-right:2px}
+
 </style>
 </head>
 <body>
@@ -79,7 +152,7 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 </section>
 <section id="match" class="screen">
 <div class="card"><h2>🎯 対戦結果入力</h2>
-<div class="hint">同じ組み合わせは今月1回まで。</div>
+<div class="hint">同じ組み合わせは毎月1回まで。</div>
 <button type="button" class="admin-link" id="unplayedToggle">未対戦相手を探す</button>
 <div id="unplayedPanel" style="display:none;margin:10px 0 16px"><label>自分のニックネーム</label><select id="unplayedPlayer"></select><div id="unplayedList" style="margin-top:10px"></div></div>
 <label>プレイヤーA</label><select id="pA"></select>
@@ -190,7 +263,7 @@ function statText(v){
 }
 
 function rankRows(arr){
-  return arr.map((p,i)=>`<div class="row"><div class="rank">${i+1}</div><div class="name">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(p.nickname)}<div class="avgstats">${p.matches}戦 ／ 01平均 ${statText(p.avg01)}　Cri平均 ${statText(p.avgCri)}</div></div><div class="pts">${p.points}pt</div></div>`).join('');
+  return arr.map((p,i)=>`<div class="row ${i<3?`top-rank-${i+1}`:''}">${rankBadge(i+1)}<div class="name">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(p.nickname)}<div class="avgstats">${p.matches}戦 ／ 01平均 ${statText(p.avg01)}　Cri平均 ${statText(p.avgCri)}</div></div><div class="pts">${p.points}pt</div></div>`).join('');
 }
 
 let adminUnlocked=false;
@@ -335,8 +408,16 @@ function renderUnplayed(){
  if(!me){list.innerHTML='<div class="small">ニックネームを選ぶと、今月の未対戦相手が出るよ。</div>';return}
  const remaining=state.players.filter(p=>String(p.id)!==String(me)&&!alreadyPlayed(me,p.id));
  if(!remaining.length){list.innerHTML='<div class="success">🎉 今月は全員と対戦済み！</div>';return}
- list.innerHTML='<div class="small" style="margin-bottom:8px">未対戦 '+remaining.length+'人 ／ 相手をタップすると対戦入力にセット</div><div class="grid">'+remaining.map(p=>`<button type="button" class="resultbtn unplayed-opponent" data-id="${p.id}">${esc(p.nickname)}</button>`).join('')+'</div>';
+ list.innerHTML='<div class="small" style="margin-bottom:8px">未対戦 '+remaining.length+'人 ／ 相手をタップすると対戦入力に自動セット</div><div class="grid">'+remaining.map(p=>`<button type="button" class="resultbtn unplayed-opponent" data-id="${p.id}">${esc(p.nickname)}</button>`).join('')+'</div>';
  list.querySelectorAll('.unplayed-opponent').forEach(btn=>btn.addEventListener('click',()=>{document.getElementById('pA').value=String(me);document.getElementById('pB').value=String(btn.dataset.id);renderMatch();document.getElementById('unplayedPanel').style.display='none';document.getElementById('unplayedToggle').textContent='未対戦相手を探す';document.getElementById('matchArea').scrollIntoView({behavior:'smooth',block:'start'});}));
+}
+
+
+function rankBadge(rank){
+  if(rank>=1 && rank<=3){
+    return `<div class="rank-medal rank-${rank}" aria-label="${rank}位"><div class="medal-circle">${rank}</div></div>`;
+  }
+  return `<div class="rank">${rank}</div>`;
 }
 
 function alreadyPlayed(a,b){
