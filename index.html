@@ -17,7 +17,7 @@ main{padding:16px}.screen{display:none}.screen.active{display:block}
 .card{background:#242424;border-radius:14px;padding:16px;margin-bottom:12px}
 h2{font-size:17px;margin:4px 0 14px}.hint{color:#999;font-size:12px}
 .row{display:flex;align-items:center;justify-content:space-between;padding:13px 4px;border-bottom:1px solid #333}.row:last-child{border-bottom:0}
-.rank{width:36px;font-weight:800}.name{flex:1;font-weight:700}.pts{font-size:18px;font-weight:800}.avgstats{font-size:11px;color:#aaa;margin-top:5px;line-height:1.5}.stats-box{margin-top:14px;padding:12px;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:11px}.stats-player{font-weight:800;margin:2px 0 8px}.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stats-grid label{margin-top:0}.leg-title{font-size:14px;font-weight:800;margin:16px 0 8px}.choice-type{margin:10px 0}
+.rank{width:46px;flex:0 0 46px;margin-right:8px;font-weight:800;text-align:center}.name{flex:1;font-weight:700}.pts{font-size:18px;font-weight:800}.avgstats{font-size:11px;color:#aaa;margin-top:5px;line-height:1.5}.stats-box{margin-top:14px;padding:12px;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:11px}.stats-player{font-weight:800;margin:2px 0 8px}.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stats-grid label{margin-top:0}.leg-title{font-size:14px;font-weight:800;margin:16px 0 8px}.choice-type{margin:10px 0}
 label{display:block;font-size:12px;color:#aaa;margin:12px 0 6px}
 select,input{width:100%;padding:13px;border:1px solid #444;border-radius:10px;background:#111;color:#fff;font-size:16px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.resultbtn{padding:14px;border:1px solid #444;background:#111;color:#fff;border-radius:10px;font-weight:700}
@@ -43,7 +43,7 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 .podium-rank{
   position:relative;
   width:46px;
-  height:53px;
+  height:46px;
   margin-right:8px;
   flex:0 0 46px;
   display:flex;
@@ -52,24 +52,24 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 }
 .podium-rank .crown{
   position:absolute;
-  top:1px;
+  top:0;
   left:50%;
   transform:translateX(-50%);
-  font-size:22px;
+  font-size:18px;
   line-height:1;
   color:#ffb000;
   font-weight:900;
   text-shadow:0 1px 2px rgba(0,0,0,.5);
 }
 .podium-rank .podium-circle{
-  width:39px;
-  height:39px;
+  width:34px;
+  height:34px;
   border-radius:50%;
   display:flex;
   align-items:center;
   justify-content:center;
   color:#fff;
-  font-size:22px;
+  font-size:19px;
   font-weight:900;
   box-shadow:inset 0 -3px 0 rgba(0,0,0,.18),0 2px 5px rgba(0,0,0,.28);
 }
