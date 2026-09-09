@@ -101,6 +101,60 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
   font-size:18px;
   font-weight:800;
 }
+
+/* ===== RANK COLUMN FORCE ALIGN =====
+   1〜3位の丸アイコンと4位以降の順位数字を同じ列に固定 */
+.row{
+  display:grid!important;
+  grid-template-columns:54px minmax(0,1fr) auto!important;
+  align-items:center!important;
+  column-gap:8px!important;
+}
+.row > .rank,
+.row > .podium-rank{
+  grid-column:1!important;
+  width:54px!important;
+  min-width:54px!important;
+  max-width:54px!important;
+  margin:0!important;
+  justify-self:center!important;
+  text-align:center!important;
+}
+.row > .name{
+  grid-column:2!important;
+  width:auto!important;
+  min-width:0!important;
+  margin:0!important;
+}
+.row > .pts{
+  grid-column:3!important;
+  margin:0!important;
+}
+
+/* 1〜3位アイコンを小型化 */
+.podium-rank{
+  height:44px!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+}
+.podium-rank .podium-circle{
+  width:34px!important;
+  height:34px!important;
+  font-size:19px!important;
+}
+.podium-rank .crown{
+  top:0!important;
+  font-size:18px!important;
+}
+
+/* 4位以降の数字も同じ中央位置 */
+.rank{
+  font-size:18px!important;
+  font-weight:800!important;
+  line-height:1!important;
+}
+
 </style>
 </head>
 <body>
