@@ -124,6 +124,47 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 .row.top-rank-2{min-height:90px!important;padding-top:16px!important;padding-bottom:16px!important}.row.top-rank-2 .name{font-size:1.28em!important;font-weight:900!important}.row.top-rank-2 .pts{font-size:1.32em!important;font-weight:900!important}
 .row.top-rank-3{min-height:80px!important;padding-top:13px!important;padding-bottom:13px!important}.row.top-rank-3 .name{font-size:1.15em!important;font-weight:850!important}.row.top-rank-3 .pts{font-size:1.18em!important;font-weight:850!important}
 .rank-medal{display:none!important}
+
+/* ===== TOP3 BALANCE ADJUSTMENT =====
+   戦績・ポイントの文字サイズは全順位共通。
+   上位3位は順位アイコンと名前だけ強調。 */
+.row.top-rank-1,
+.row.top-rank-2,
+.row.top-rank-3{
+  min-height:unset!important;
+  padding-top:10px!important;
+  padding-bottom:10px!important;
+}
+.row.top-rank-1 .avgstats,
+.row.top-rank-2 .avgstats,
+.row.top-rank-3 .avgstats{
+  font-size:inherit!important;
+}
+.row.top-rank-1 .pts,
+.row.top-rank-2 .pts,
+.row.top-rank-3 .pts{
+  font-size:inherit!important;
+  font-weight:inherit!important;
+}
+
+/* 順位アイコンは少しだけ段階差 */
+.podium-1{width:50px!important;height:57px!important;margin-right:9px!important}
+.podium-1 .crown{font-size:24px!important;top:0!important}
+.podium-1 .podium-circle{width:43px!important;height:43px!important;font-size:25px!important}
+
+.podium-2{width:46px!important;height:53px!important;margin-right:8px!important}
+.podium-2 .crown{font-size:22px!important;top:1px!important}
+.podium-2 .podium-circle{width:39px!important;height:39px!important;font-size:22px!important}
+
+.podium-3{width:43px!important;height:50px!important;margin-right:7px!important}
+.podium-3 .crown{font-size:20px!important;top:2px!important}
+.podium-3 .podium-circle{width:36px!important;height:36px!important;font-size:20px!important}
+
+/* 名前だけ 1位 > 2位 > 3位 */
+.row.top-rank-1 .name{font-size:1.25em!important;font-weight:900!important}
+.row.top-rank-2 .name{font-size:1.15em!important;font-weight:900!important}
+.row.top-rank-3 .name{font-size:1.08em!important;font-weight:850!important}
+
 </style>
 </head>
 <body>
