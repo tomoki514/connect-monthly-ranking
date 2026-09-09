@@ -330,31 +330,53 @@ function alreadyPlayed(a,b){
   return state.matches.some(x=>x.month_key===monthKey() && ((String(x.player_a)===String(a)&&String(x.player_b)===String(b))||(String(x.player_a)===String(b)&&String(x.player_b)===String(a))));
 }
 
+
 function renderMatch(){
-  const area=document.getElementById('matchArea'), a=document.getElementById('pA').value, b=document.getElementById('pB').value;
+  const area=document.getElementById('matchArea');
+  const a=document.getElementById('pA').value;
+  const b=document.getElementById('pB').value;
   sel={};
-  if(!a||!b||a===b){area.innerHTML='<div class="small">2人を選ぶと結果を入力できます。</div>';return}
-  if(alreadyPlayed(a,b)){area.innerHTML='<div class="warning">この2人は今月すでに対戦済み。</div>';return}
+
+  if(!a||!b||a===b){
+    area.innerHTML='<div class="small">2人を選ぶと結果を入力できます。</div>';
+    return;
+  }
+  if(alreadyPlayed(a,b)){
+    area.innerHTML='<div class="warning">この2人は今月すでに対戦済み。</div>';
+    return;
+  }
 
   area.innerHTML=`
-    <div class="leg-title">① 701（01）</div>
-    <div class="grid"><button class="resultbtn" data-leg="1" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="1" data-win="${b}">${esc(playerName(b))}</button></div>
-    <div class="stats-box">
-      <div class="stats-grid">
-        <div><label>${esc(playerName(a))} 01 Stats</label><input id="a01Stats" type="number" inputmode="decimal" step="0.01" min="0" max="180" placeholder="例：118.80"></div>
-        <div><label>${esc(playerName(b))} 01 Stats</label><input id="b01Stats" type="number" inputmode="decimal" step="0.01" min="0" max="180" placeholder="例：105.50"></div>
+    <div id="leg1Block">
+      <div class="leg-title">① 701（01）</div>
+      <div class="grid">
+        <button class="resultbtn" data-leg="1" data-win="${a}">${esc(playerName(a))}</button>
+        <button class="resultbtn" data-leg="1" data-win="${b}">${esc(playerName(b))}</button>
       </div>
+      <div class="stats-box">
+        <div class="stats-grid">
+          <div><label>${esc(playerName(a))} 01 Stats</label><input id="a01Stats" type="number" inputmode="decimal" step="0.01" min="0" max="180" placeholder="例：118.80"></div>
+          <div><label>${esc(playerName(b))} 01 Stats</label><input id="b01Stats" type="number" inputmode="decimal" step="0.01" min="0" max="180" placeholder="例：105.50"></div>
+        </div>
+      </div>
+      <button class="primary" id="confirmLeg1Btn">701を確定</button>
+      <div id="leg1Msg"></div>
     </div>
 
-    <div id="cricketWrap" style="display:none">
+    <div id="leg2Block" style="display:none">
       <div class="leg-title">② Cri</div>
-      <div class="grid"><button class="resultbtn" data-leg="2" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="2" data-win="${b}">${esc(playerName(b))}</button></div>
+      <div class="grid">
+        <button class="resultbtn" data-leg="2" data-win="${a}">${esc(playerName(a))}</button>
+        <button class="resultbtn" data-leg="2" data-win="${b}">${esc(playerName(b))}</button>
+      </div>
       <div class="stats-box">
         <div class="stats-grid">
           <div><label>${esc(playerName(a))} Cri Stats</label><input id="aCriStats" type="number" inputmode="decimal" step="0.01" min="0" max="9" placeholder="例：7.00"></div>
           <div><label>${esc(playerName(b))} Cri Stats</label><input id="bCriStats" type="number" inputmode="decimal" step="0.01" min="0" max="9" placeholder="例：5.80"></div>
         </div>
       </div>
+      <button class="primary" id="confirmLeg2Btn">Criを確定</button>
+      <div id="leg2Msg"></div>
     </div>
 
     <div id="choiceWrap" style="display:none">
@@ -365,23 +387,31 @@ function renderMatch(){
         <option value="01">01</option>
         <option value="Cri">Cri</option>
       </select>
-      <div class="grid"><button class="resultbtn" data-leg="3" data-win="${a}">${esc(playerName(a))}</button><button class="resultbtn" data-leg="3" data-win="${b}">${esc(playerName(b))}</button></div>
+      <div class="grid">
+        <button class="resultbtn" data-leg="3" data-win="${a}">${esc(playerName(a))}</button>
+        <button class="resultbtn" data-leg="3" data-win="${b}">${esc(playerName(b))}</button>
+      </div>
       <div class="stats-box" id="choiceStatsBox">
         <div class="small">Choのゲームを選ぶとStats入力欄が表示されます。</div>
       </div>
+      <button class="primary" id="confirmLeg3Btn">Choを確定</button>
+      <div id="leg3Msg"></div>
     </div>
 
-    <div id="confirm"></div>`;
+    <div id="matchConfirm"></div>`;
 
   area.querySelectorAll('.resultbtn').forEach(btn=>btn.addEventListener('click',()=>pick(btn)));
-  const ct=document.getElementById('choiceType');
-  if(ct) ct.addEventListener('change',renderChoiceStatsInputs);
+  document.getElementById('confirmLeg1Btn').addEventListener('click',confirmLeg1);
+  document.getElementById('confirmLeg2Btn').addEventListener('click',confirmLeg2);
+  document.getElementById('confirmLeg3Btn').addEventListener('click',confirmLeg3);
+  document.getElementById('choiceType').addEventListener('change',renderChoiceStatsInputs);
 }
 
 function renderChoiceStatsInputs(){
   const type=document.getElementById('choiceType')?.value;
   const box=document.getElementById('choiceStatsBox');
-  const a=document.getElementById('pA').value,b=document.getElementById('pB').value;
+  const a=document.getElementById('pA').value;
+  const b=document.getElementById('pB').value;
   if(!box) return;
   if(!type){
     box.innerHTML='<div class="small">Choのゲームを選ぶとStats入力欄が表示されます。</div>';
@@ -397,83 +427,159 @@ function renderChoiceStatsInputs(){
 }
 
 function pick(btn){
-  const leg=Number(btn.dataset.leg); sel[leg]=btn.dataset.win;
-  document.querySelectorAll(`[data-leg="${leg}"]`).forEach(x=>x.classList.remove('selected'));btn.classList.add('selected');
-  if(leg===1) document.getElementById('cricketWrap').style.display='block';
-  if(leg===2){
-    if(sel[1]===sel[2]) finishPreview(2);
-    else document.getElementById('choiceWrap').style.display='block';
-  }
-  if(leg===3) finishPreview(3);
+  const leg=Number(btn.dataset.leg);
+  sel[leg]=btn.dataset.win;
+  document.querySelectorAll(`[data-leg="${leg}"]`).forEach(x=>x.classList.remove('selected'));
+  btn.classList.add('selected');
 }
 
-function finishPreview(legs){
-  const a=document.getElementById('pA').value,b=document.getElementById('pB').value;
-  const winner=sel[legs],loser=winner===a?b:a,pts=legs===2?2:1;
-  document.getElementById('confirm').innerHTML=`<div class="success">${legs===2?'スト勝ち（2-0）':'2-1'}：<b>${esc(playerName(winner))} +${pts}pt</b> ／ ${esc(playerName(loser))} -${pts}pt</div><button class="primary" id="saveMatchBtn">この結果を登録</button>`;
+function lockLeg(leg,locked){
+  document.querySelectorAll(`[data-leg="${leg}"]`).forEach(x=>x.disabled=locked);
+  const ids=leg===1?['a01Stats','b01Stats']:leg===2?['aCriStats','bCriStats']:['choiceType','aChoiceStats','bChoiceStats'];
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=locked});
+}
+
+function confirmLeg1(){
+  const msg=document.getElementById('leg1Msg');
+  const a01=Number(document.getElementById('a01Stats')?.value);
+  const b01=Number(document.getElementById('b01Stats')?.value);
+  if(!sel[1]){msg.innerHTML='<div class="warning">701の勝者を選んでね。</div>';return}
+  if(![a01,b01].every(Number.isFinite)){msg.innerHTML='<div class="warning">2人分の01 Statsを入力してね。</div>';return}
+  if(a01<0||a01>180||b01<0||b01>180){msg.innerHTML='<div class="warning">01 Statsは0〜180で入力してね。</div>';return}
+
+  sel.leg1Confirmed=true; sel.a01=a01; sel.b01=b01;
+  lockLeg(1,true);
+  document.getElementById('confirmLeg1Btn').style.display='none';
+  msg.innerHTML='<div class="success">701を確定しました。<button type="button" id="editLeg1Btn" class="admin-link">修正する</button></div>';
+  document.getElementById('editLeg1Btn').addEventListener('click',()=>{
+    sel.leg1Confirmed=false;
+    lockLeg(1,false);
+    document.getElementById('confirmLeg1Btn').style.display='block';
+    msg.innerHTML='';
+    resetAfterLeg1();
+  });
+  document.getElementById('leg2Block').style.display='block';
+  document.getElementById('leg2Block').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function resetAfterLeg1(){
+  sel[2]=undefined; sel.leg2Confirmed=false;
+  sel[3]=undefined; sel.leg3Confirmed=false;
+  document.querySelectorAll('[data-leg="2"],[data-leg="3"]').forEach(x=>{x.classList.remove('selected');x.disabled=false});
+  ['aCriStats','bCriStats'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.disabled=false}});
+  const b2=document.getElementById('confirmLeg2Btn'); if(b2)b2.style.display='block';
+  const m2=document.getElementById('leg2Msg'); if(m2)m2.innerHTML='';
+  const cho=document.getElementById('choiceWrap'); if(cho)cho.style.display='none';
+  const ct=document.getElementById('choiceType'); if(ct){ct.value='';ct.disabled=false}
+  const cs=document.getElementById('choiceStatsBox'); if(cs)cs.innerHTML='<div class="small">Choのゲームを選ぶとStats入力欄が表示されます。</div>';
+  const b3=document.getElementById('confirmLeg3Btn'); if(b3)b3.style.display='block';
+  const m3=document.getElementById('leg3Msg'); if(m3)m3.innerHTML='';
+  const mc=document.getElementById('matchConfirm'); if(mc)mc.innerHTML='';
+}
+
+function confirmLeg2(){
+  const msg=document.getElementById('leg2Msg');
+  const aCri=Number(document.getElementById('aCriStats')?.value);
+  const bCri=Number(document.getElementById('bCriStats')?.value);
+  if(!sel.leg1Confirmed){msg.innerHTML='<div class="warning">先に701を確定してね。</div>';return}
+  if(!sel[2]){msg.innerHTML='<div class="warning">Criの勝者を選んでね。</div>';return}
+  if(![aCri,bCri].every(Number.isFinite)){msg.innerHTML='<div class="warning">2人分のCri Statsを入力してね。</div>';return}
+  if(aCri<0||aCri>9||bCri<0||bCri>9){msg.innerHTML='<div class="warning">Cri Statsは0〜9で入力してね。</div>';return}
+
+  sel.leg2Confirmed=true; sel.aCri=aCri; sel.bCri=bCri;
+  lockLeg(2,true);
+  document.getElementById('confirmLeg2Btn').style.display='none';
+  msg.innerHTML='<div class="success">Criを確定しました。<button type="button" id="editLeg2Btn" class="admin-link">修正する</button></div>';
+  document.getElementById('editLeg2Btn').addEventListener('click',()=>{
+    sel.leg2Confirmed=false;
+    lockLeg(2,false);
+    document.getElementById('confirmLeg2Btn').style.display='block';
+    msg.innerHTML='';
+    document.getElementById('choiceWrap').style.display='none';
+    document.getElementById('matchConfirm').innerHTML='';
+  });
+
+  if(String(sel[1])===String(sel[2])){
+    document.getElementById('choiceWrap').style.display='none';
+    showFinalConfirm(2);
+  }else{
+    document.getElementById('choiceWrap').style.display='block';
+    document.getElementById('choiceWrap').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+
+function confirmLeg3(){
+  const msg=document.getElementById('leg3Msg');
+  const type=document.getElementById('choiceType')?.value||'';
+  if(!sel.leg2Confirmed){msg.innerHTML='<div class="warning">先にCriを確定してね。</div>';return}
+  if(!type){msg.innerHTML='<div class="warning">Choが01かCriか選んでね。</div>';return}
+  if(!sel[3]){msg.innerHTML='<div class="warning">Choの勝者を選んでね。</div>';return}
+  const aChoice=Number(document.getElementById('aChoiceStats')?.value);
+  const bChoice=Number(document.getElementById('bChoiceStats')?.value);
+  if(![aChoice,bChoice].every(Number.isFinite)){msg.innerHTML='<div class="warning">2人分のCho Statsを入力してね。</div>';return}
+  const max=type==='01'?180:9;
+  if(aChoice<0||aChoice>max||bChoice<0||bChoice>max){msg.innerHTML=`<div class="warning">${type} Statsの範囲を確認してね。</div>`;return}
+
+  sel.leg3Confirmed=true; sel.choiceType=type; sel.aChoice=aChoice; sel.bChoice=bChoice;
+  lockLeg(3,true);
+  document.getElementById('confirmLeg3Btn').style.display='none';
+  msg.innerHTML='<div class="success">Choを確定しました。<button type="button" id="editLeg3Btn" class="admin-link">修正する</button></div>';
+  document.getElementById('editLeg3Btn').addEventListener('click',()=>{
+    sel.leg3Confirmed=false;
+    lockLeg(3,false);
+    document.getElementById('confirmLeg3Btn').style.display='block';
+    msg.innerHTML='';
+    document.getElementById('matchConfirm').innerHTML='';
+  });
+  showFinalConfirm(3);
+}
+
+function showFinalConfirm(legs){
+  const a=document.getElementById('pA').value;
+  const b=document.getElementById('pB').value;
+  const winner=legs===2?sel[2]:sel[3];
+  const loser=String(winner)===String(a)?b:a;
+  const pts=legs===2?2:1;
+  document.getElementById('matchConfirm').innerHTML=
+    `<div class="success">${legs===2?'スト勝ち（2-0）':'2-1'}：<b>${esc(playerName(winner))} +${pts}pt</b> ／ ${esc(playerName(loser))} -${pts}pt</div><button class="primary" id="saveMatchBtn">この結果を登録</button>`;
   document.getElementById('saveMatchBtn').addEventListener('click',()=>saveMatch(a,b,winner,loser,pts,legs));
 }
 
 async function saveMatch(a,b,winner,loser,pts,legs){
-  const btn=document.getElementById('saveMatchBtn'); if(btn){btn.disabled=true;btn.textContent='登録中…'}
+  const btn=document.getElementById('saveMatchBtn');
+  if(btn){btn.disabled=true;btn.textContent='登録中…'}
   try{
-    const result701=Number(sel[1]);
-    const resultCricket=Number(sel[2]);
-    const resultChoice=legs===3?Number(sel[3]):null;
-
-    const a01=Number(document.getElementById('a01Stats')?.value);
-    const b01=Number(document.getElementById('b01Stats')?.value);
-    const aCri=Number(document.getElementById('aCriStats')?.value);
-    const bCri=Number(document.getElementById('bCriStats')?.value);
-
-    if(![a01,b01,aCri,bCri].every(Number.isFinite)){
-      alert('701の01 StatsとCri Statsを2人分入力してね。');
-      return;
-    }
-    if(a01<0||a01>180||b01<0||b01>180){
-      alert('01 Statsは0〜180で入力してね。'); return;
-    }
-    if(aCri<0||aCri>9||bCri<0||bCri>9){
-      alert('Cri Statsは0〜9で入力してね。'); return;
-    }
-
-    let choiceType=null,aChoice=null,bChoice=null;
-    if(legs===3){
-      choiceType=document.getElementById('choiceType')?.value||'';
-      if(!choiceType){alert('Choが01かCriか選んでね。');return}
-      aChoice=Number(document.getElementById('aChoiceStats')?.value);
-      bChoice=Number(document.getElementById('bChoiceStats')?.value);
-      if(![aChoice,bChoice].every(Number.isFinite)){alert('ChoのStatsを2人分入力してね。');return}
-      const max=choiceType==='01'?180:9;
-      if(aChoice<0||aChoice>max||bChoice<0||bChoice>max){
-        alert(`${choiceType} Statsの範囲を確認してね。`);return
-      }
-    }
+    const payload={
+      month_key:monthKey(),
+      player_a:Number(a), player_b:Number(b),
+      leg_701_winner:Number(sel[1]),
+      cricket_winner:Number(sel[2]),
+      choice_winner:legs===3?Number(sel[3]):null,
+      winner:Number(winner), loser:Number(loser),
+      winner_points:pts, loser_points:-pts,
+      player_a_01_stats:sel.a01, player_b_01_stats:sel.b01,
+      player_a_cri_stats:sel.aCri, player_b_cri_stats:sel.bCri,
+      choice_type:legs===3?sel.choiceType:null,
+      player_a_choice_stats:legs===3?sel.aChoice:null,
+      player_b_choice_stats:legs===3?sel.bChoice:null
+    };
 
     await loadData(false);
     if(alreadyPlayed(a,b)){alert('この2人は今月すでに対戦済みです。');renderMatch();return}
-    const payload={
-      month_key:monthKey(), player_a:Number(a), player_b:Number(b),
-      leg_701_winner:result701, cricket_winner:resultCricket,
-      choice_winner:resultChoice,
-      winner:Number(winner), loser:Number(loser), winner_points:pts, loser_points:-pts,
-      player_a_01_stats:a01, player_b_01_stats:b01,
-      player_a_cri_stats:aCri, player_b_cri_stats:bCri,
-      choice_type:choiceType||null,
-      player_a_choice_stats:aChoice,
-      player_b_choice_stats:bChoice
-    };
     await api('/matches',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(payload)});
-    document.getElementById('pA').value='';document.getElementById('pB').value='';
+    document.getElementById('pA').value='';
+    document.getElementById('pB').value='';
     await loadData(false);
     alert('対戦結果を登録しました！');
   }catch(e){
     console.error(e);
     if(String(e.message).includes('matches_unique_month_pair')||String(e.message).includes('duplicate key')) alert('この2人は今月すでに対戦済みです。');
-    else if(String(e.message).includes('choice_type')||String(e.message).includes('choice_stats')) alert('Cho用のSupabase設定がまだです。先に追加SQLを実行してね。');
     else alert('対戦結果を登録できませんでした。もう一度試してね。');
-  }finally{if(btn){btn.disabled=false;btn.textContent='この結果を登録'}}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='この結果を登録'}
+  }
 }
+
 
 async function addPlayer(){
   const nameEl=document.getElementById('newName'),msg=document.getElementById('regMsg'),btn=document.getElementById('registerBtn');
