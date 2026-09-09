@@ -80,6 +80,8 @@ button.admin-delete{background:#321f1f;color:#ffb3b3;border:1px solid #633}
 <section id="match" class="screen">
 <div class="card"><h2>🎯 対戦結果入力</h2>
 <div class="hint">同じ組み合わせは今月1回まで。</div>
+<button type="button" class="admin-link" id="unplayedToggle">未対戦相手を探す</button>
+<div id="unplayedPanel" style="display:none;margin:10px 0 16px"><label>自分のニックネーム</label><select id="unplayedPlayer"></select><div id="unplayedList" style="margin-top:10px"></div></div>
 <label>プレイヤーA</label><select id="pA"></select>
 <label>プレイヤーB</label><select id="pB"></select>
 <div id="matchArea"></div>
@@ -320,10 +322,21 @@ function render(){
   const oldA=a.value, oldB=b.value;
   const opts='<option value="">選択してください</option>'+state.players.map(p=>`<option value="${p.id}">${esc(p.nickname)}</option>`).join('');
   a.innerHTML=opts;b.innerHTML=opts;
+  const up=document.getElementById('unplayedPlayer');
+  if(up){const oldU=up.value;up.innerHTML=opts;if(state.players.some(p=>String(p.id)===oldU))up.value=oldU;renderUnplayed();}
   if(state.players.some(p=>String(p.id)===oldA)) a.value=oldA;
   if(state.players.some(p=>String(p.id)===oldB)) b.value=oldB;
   renderMatch();
   if(adminUnlocked) renderAdminMatches();
+}
+
+function renderUnplayed(){
+ const pick=document.getElementById('unplayedPlayer'),list=document.getElementById('unplayedList'); if(!pick||!list)return; const me=pick.value;
+ if(!me){list.innerHTML='<div class="small">ニックネームを選ぶと、今月の未対戦相手が出るよ。</div>';return}
+ const remaining=state.players.filter(p=>String(p.id)!==String(me)&&!alreadyPlayed(me,p.id));
+ if(!remaining.length){list.innerHTML='<div class="success">🎉 今月は全員と対戦済み！</div>';return}
+ list.innerHTML='<div class="small" style="margin-bottom:8px">未対戦 '+remaining.length+'人 ／ 相手をタップすると対戦入力にセット</div><div class="grid">'+remaining.map(p=>`<button type="button" class="resultbtn unplayed-opponent" data-id="${p.id}">${esc(p.nickname)}</button>`).join('')+'</div>';
+ list.querySelectorAll('.unplayed-opponent').forEach(btn=>btn.addEventListener('click',()=>{document.getElementById('pA').value=String(me);document.getElementById('pB').value=String(btn.dataset.id);renderMatch();document.getElementById('unplayedPanel').style.display='none';document.getElementById('unplayedToggle').textContent='未対戦相手を探す';document.getElementById('matchArea').scrollIntoView({behavior:'smooth',block:'start'});}));
 }
 
 function alreadyPlayed(a,b){
@@ -631,6 +644,8 @@ document.getElementById('adminLogoutBtn').addEventListener('click',()=>{
 });
 
 document.getElementById('registerBtn').addEventListener('click',addPlayer);
+document.getElementById('unplayedToggle').addEventListener('click',()=>{const panel=document.getElementById('unplayedPanel');const open=panel.style.display==='none';panel.style.display=open?'block':'none';document.getElementById('unplayedToggle').textContent=open?'未対戦チェックを閉じる':'未対戦相手を探す';if(open)renderUnplayed();});
+document.getElementById('unplayedPlayer').addEventListener('change',renderUnplayed);
 document.getElementById('pA').addEventListener('change',renderMatch);
 document.getElementById('pB').addEventListener('change',renderMatch);
 document.querySelectorAll('nav button').forEach(btn=>btn.addEventListener('click',async()=>{
